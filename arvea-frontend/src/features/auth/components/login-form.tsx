@@ -1,18 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { type FormEvent } from "react";
 import { CustomInput } from "@/components/ui/custom-input";
 import { useLogin } from "../hooks/use-login";
 import { loginFields } from "../constants/form";
+import { CustomButton } from "@/components/ui/custom-button";
 
 
 export function LoginForm() {
   const params = useParams();
+  const router = useRouter();
 
   const locale =
     typeof params?.locale === "string" ? params.locale : "fr";
+
+  
 
   const {
     setFormData,
@@ -23,7 +27,11 @@ export function LoginForm() {
     formError,
     validationErrors,
     isPending,
-  } = useLogin();
+  } = useLogin({
+    onSuccess: () => {
+      router.push(`/${locale}/account`);
+    }
+  });
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -88,13 +96,9 @@ export function LoginForm() {
           Remember me
         </label>
 
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isPending ? "Signing in..." : "Sign in"}
-        </button>
+        <CustomButton type="submit" isLoading={isPending}>
+          Sign in
+        </CustomButton>
       </form>
 
       <div className="mt-6 text-sm text-neutral-600">
