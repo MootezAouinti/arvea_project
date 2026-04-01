@@ -30,7 +30,7 @@ export function CustomInput({
       <input
         id={id}
         className={clsx(
-          "w-full rounded-xl border px-4 py-3 text-sm outline-none transition",
+          "w-full rounded-xl border px-4 py-3 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none transition bg-white",
           error
             ? "border-red-400 focus:border-red-500"
             : "border-neutral-300 focus:border-neutral-900",

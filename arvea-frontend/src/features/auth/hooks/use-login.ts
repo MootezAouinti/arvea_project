@@ -35,7 +35,12 @@ export function useLogin(options?: UseLoginOptions) {
   >({
     mutationFn: (payload) => authService.login(payload),
     onSuccess: async (data) => {
-      queryClient.setQueryData(authQueryKeys.me(), data.data.user);
+      queryClient.setQueryData(authQueryKeys.me(), {
+        success: data.success,
+        message: data.message,
+        data: data.data.user,
+      });
+      
 
       await queryClient.invalidateQueries({
         queryKey: authQueryKeys.me(),

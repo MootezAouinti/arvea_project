@@ -18,7 +18,11 @@ export function useRegister(options?: UseRegisterOptions) {
   return useMutation<RegisterResponse, ApiError | Error, RegisterRequest>({
     mutationFn: (payload) => authService.register(payload),
     onSuccess: async (data) => {
-      queryClient.setQueryData(authQueryKeys.me(), data.data.user);
+      queryClient.setQueryData(authQueryKeys.me(), {
+        success: data.success,
+        message: data.message,
+        data: data.data.user,
+      });
 
       await queryClient.invalidateQueries({
         queryKey: authQueryKeys.me(),

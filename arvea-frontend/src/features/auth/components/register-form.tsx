@@ -6,6 +6,8 @@ import { useState, type FormEvent } from "react";
 import { ApiError } from "@/libs/api/client";
 import { CustomInput } from "@/components/ui/custom-input";
 import { useRegister } from "../hooks/use-register";
+import { registerFields } from "../constants/form";
+import { CustomButton } from "@/components/ui/custom-button";
 
 type ValidationErrors = Record<string, string[]>;
 
@@ -84,76 +86,35 @@ export function RegisterForm() {
           </div>
         )}
 
-        <CustomInput
-          id="name"
-          name="name"
-          type="text"
-          label="Name"
-          autoComplete="name"
-          value={formData.name}
-          onChange={(event) =>
-            setFormData({ ...formData, name: event.target.value })
-          }
-          required
-          placeholder="Your full name"
-          error={validationErrors.name?.[0]}
-        />
+        {registerFields.map(
+          ({ id, name, label, type, autoComplete, placeholder }) => (
+            <CustomInput
+              key={id}
+              id={name}
+              name={name}
+              type={type}
+              label={label}
+              autoComplete={autoComplete}
+              value={formData[name]}
+              onChange={(event) =>
+                setFormData({
+                  ...formData,
+                  [name]: event.target.value,
+                })
+              }
+              required
+              placeholder={placeholder}
+              error={validationErrors[name]?.[0]}
+            />
+          ),
+        )}
 
-        <CustomInput
-          id="email"
-          name="email"
-          type="email"
-          label="Email"
-          autoComplete="email"
-          value={formData.email}
-          onChange={(event) =>
-            setFormData({ ...formData, email: event.target.value })
-          }
-          required
-          placeholder="you@example.com"
-          error={validationErrors.email?.[0]}
-        />
-
-        <CustomInput
-          id="password"
-          name="password"
-          type="password"
-          label="Password"
-          autoComplete="new-password"
-          value={formData.password}
-          onChange={(event) =>
-            setFormData({ ...formData, password: event.target.value })
-          }
-          required
-          placeholder="••••••••"
-          error={validationErrors.password?.[0]}
-        />
-
-        <CustomInput
-          id="password_confirmation"
-          name="password_confirmation"
-          type="password"
-          label="Confirm password"
-          autoComplete="new-password"
-          value={formData.password_confirmation}
-          onChange={(event) =>
-            setFormData({
-              ...formData,
-              password_confirmation: event.target.value,
-            })
-          }
-          required
-          placeholder="••••••••"
-          error={validationErrors.password_confirmation?.[0]}
-        />
-
-        <button
-          type="submit"
-          disabled={registerMutation.isPending}
-          className="w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {registerMutation.isPending ? "Creating account..." : "Create account"}
-        </button>
+        <CustomButton
+            type="submit"
+            isLoading={registerMutation.isPending}
+          >
+            Create account
+        </CustomButton>
       </form>
 
       <div className="mt-6 text-sm text-neutral-600">
