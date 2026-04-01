@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import ProductCard from "@/components/home/ProductCard";
+import ProductCard from "@/components/products/ProductCard";
 import type { Product } from "@/types/product";
 
 export type ProductShowcaseSectionProps = {
