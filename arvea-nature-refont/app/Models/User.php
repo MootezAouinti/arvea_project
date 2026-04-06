@@ -10,15 +10,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class User extends Authenticatable
 {
-    use HasApiTokens ,HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
+        'first_name',
+        'last_name',
         'name',
         'email',
+        'phone',
         'password',
         'country_id',
         'role_id',
         'user_default_language_id',
+        'newsletter_subscribed',
+        'privacy_policy_accepted_at',
     ];
 
     protected $hidden = [
@@ -30,11 +35,13 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'privacy_policy_accepted_at' => 'datetime',
+            'newsletter_subscribed' => 'boolean',
             'password' => 'hashed',
         ];
     }
 
-    public function country()
+    public function country(): BelongsTo
     {
         return $this->belongsTo(Country::class);
     }

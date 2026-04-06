@@ -5,11 +5,24 @@ import type {
   RegisterRequest,
 } from "../interfaces/auth-request.interface";
 import type {
+  AuthUser,
   LoginResponse,
   LogoutResponse,
   MeResponse,
   RegisterResponse,
 } from "../interfaces/auth-response.interface";
+const AUTH_PREFIX = "/auth";
+
+export const apiUrl = {
+  me: `${AUTH_PREFIX}/me`,
+  login: `${AUTH_PREFIX}/login`,
+  register: `${AUTH_PREFIX}/register`,
+  logout: `${AUTH_PREFIX}/logout`,
+  update_profile: `${AUTH_PREFIX}/update-profile`,
+  update_email: `${AUTH_PREFIX}/update-email`,
+  update_phone: `${AUTH_PREFIX}/update-phone`,
+  update_psw: `${AUTH_PREFIX}/update-password`,
+};
 
 class AuthService {
   async csrf(): Promise<void> {
@@ -18,7 +31,7 @@ class AuthService {
 
   async me() {
     try {
-      const response = await apiClient.get<MeResponse>("/auth/me");
+      const response = await apiClient.get<MeResponse>(apiUrl.me);
       return response;
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -32,7 +45,7 @@ class AuthService {
   async login(payload: LoginRequest): Promise<LoginResponse> {
     await this.csrf();
 
-    const response = await apiClient.post<LoginResponse>("/auth/login", payload);
+    const response = await apiClient.post<LoginResponse>(apiUrl.login, payload);
 
     authStorage.setToken(response.data.token);
 
@@ -42,7 +55,7 @@ class AuthService {
   async register(payload: RegisterRequest): Promise<RegisterResponse> {
     await this.csrf();
 
-    const response = await apiClient.post<RegisterResponse>("/auth/register", payload);
+    const response = await apiClient.post<RegisterResponse>(apiUrl.register, payload);
 
     authStorage.setToken(response.data.token);
 
@@ -50,7 +63,7 @@ class AuthService {
   }
 
   async logout(): Promise<LogoutResponse> {
-    const response = await apiClient.post<LogoutResponse>("/auth/logout");
+    const response = await apiClient.post<LogoutResponse>(apiUrl.logout);
 
     authStorage.removeToken();
 
@@ -59,6 +72,34 @@ class AuthService {
       message: response.message ?? "Logout successful.",
     };
   }
+
+  async checkEmail(email: string): Promise<{ success: boolean; message: string; data: { exists: boolean } }> {
+    await this.csrf();
+
+    return apiClient.post("/auth/check-email", { email });
+  }
+
+  async updateProfile(data: { first_name: string; last_name: string }) {
+    return apiClient.put<{ user: AuthUser }>(apiUrl.update_profile, data);
+  }
+
+  async updateEmail(data: { email: string; password: string }) {
+    return apiClient.put<{ user: AuthUser }>(apiUrl.update_email, data);
+  }
+
+  async updatePhone(data: { phone: string }) {
+    return apiClient.put<{ user: AuthUser }>(apiUrl.update_phone, data);
+  }
+
+  async updatePassword(data: {
+  old_password: string;
+  password: string;
+  password_confirmation: string;
+  }) {
+    return apiClient.put<{ message: string }>(apiUrl.update_psw, data);
 }
+}
+
+
 
 export const authService = new AuthService();

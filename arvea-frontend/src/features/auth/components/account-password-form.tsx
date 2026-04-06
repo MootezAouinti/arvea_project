@@ -1,76 +1,79 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState, type FormEvent } from "react";
 import { ApiError } from "@/libs/api/client";
 import { CustomAuthAction } from "@/components/ui/custom-auth-action";
 import { CustomButton } from "@/components/ui/custom-button";
+import { CustomCheckbox } from "@/components/ui/custom-checkbox";
 import { CustomInput } from "@/components/ui/custom-input";
-import { authService } from "../services/auth.service";
+import { useLogin } from "../hooks/use-login";
 import { GoogleIcon, HomeIcon } from "./auth-action-icons";
+import { PasswordToggleButton } from "./password-toggle-button";
 
 type ValidationErrors = Record<string, string[]>;
 
-type LoginFormData = {
-  email: string;
-};
 
-export function LoginForm() {
-  const params = useParams();
+export function AccountPasswordForm() {
   const router = useRouter();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const [showPassword, setShowPassword] = useState(false);
 
   const locale = typeof params?.locale === "string" ? params.locale : "fr";
 
-  const [formData, setFormData] = useState<LoginFormData>({
-    email: "",
-  });
-  const [formError, setFormError] = useState<string | null>(null);
-  const [validationErrors, setValidationErrors] = useState<ValidationErrors>(
-    {}
+  const emailFromQuery = useMemo(
+    () => searchParams.get("email")?.trim() ?? "",
+    [searchParams]
   );
-  const [isPending, setIsPending] = useState(false);
 
-  function updateField<K extends keyof LoginFormData>(
-    key: K,
-    value: LoginFormData[K]
-  ) {
-    setFormData((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  }
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setFormError(null);
-    setValidationErrors({});
-    setIsPending(true);
-
-    try {
-      const response = await authService.checkEmail(formData.email);
-
-      if (response.data.exists) {
-        router.push(
-          `/${locale}/accountpassword?email=${encodeURIComponent(formData.email)}`
-        );
-      } else {
-        router.push(
-          `/${locale}/register?email=${encodeURIComponent(formData.email)}`
-        );
-      }
-    } catch (error) {
+  const {
+    setFormData,
+    formData,
+    loginMutation,
+    setFormError,
+    setValidationErrors,
+    formError,
+    validationErrors,
+    isPending,
+  } = useLogin({
+    onSuccess: () => {
+      router.push(`/${locale}/CustomerPortal/account`);
+    },
+    onError: (error) => {
       if (error instanceof ApiError) {
         setFormError(error.message);
         setValidationErrors(error.errors ?? {});
-      } else if (error instanceof Error) {
-        setFormError(error.message);
-      } else {
-        setFormError("Something went wrong.");
+        return;
       }
-    } finally {
-      setIsPending(false);
-    }
+
+      setFormError(error.message || "Something went wrong.");
+      setValidationErrors({});
+    },
+  });
+
+  function updateField<K extends keyof typeof formData>(
+    key: K,
+    value: (typeof formData)[K]
+  ) {
+    setFormData({
+      ...formData,
+      email: emailFromQuery,
+      [key]: value,
+    });
+  }
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setFormError(null);
+    setValidationErrors({});
+
+    loginMutation({
+      email: emailFromQuery,
+      password: formData.password,
+      remember: formData.remember,
+    });
   };
 
   return (
@@ -106,6 +109,18 @@ export function LoginForm() {
             <h2 className="mt-3 text-[19px] font-semibold text-[#1f2a44]">
               Bienvenue parmi nous !
             </h2>
+
+            {emailFromQuery ? (
+              <p className="mt-1 text-[13px] text-[#64748b]">
+                {emailFromQuery}{" "}
+                <Link
+                  href={`/${locale}/login`}
+                  className="font-semibold uppercase text-[#b8860b] underline underline-offset-2"
+                >
+                  CHANGER
+                </Link>
+              </p>
+            ) : null}
           </div>
 
           <form onSubmit={handleSubmit} className="w-full space-y-4">
@@ -115,17 +130,39 @@ export function LoginForm() {
               </div>
             ) : null}
 
-            <CustomInput
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="Adresse e-mail"
-              value={formData.email}
-              onChange={(e) => updateField("email", e.target.value)}
-              error={validationErrors.email?.[0]}
-              required
-              className="h-[52px] rounded-[8px]"
+            <div>
+              <CustomInput
+                type={showPassword ? "text" : "password"}
+                placeholder="Mot de passe"
+                value={formData.password}
+                onChange={(event) => updateField("password", event.target.value)}
+                error={validationErrors.password?.[0]}
+                required
+                className="h-[52px] rounded-[8px]"
+                inputClassName="pr-3"
+                rightSlot={
+                  <PasswordToggleButton
+                    shown={showPassword}
+                    onClick={() => setShowPassword((prev) => !prev)}
+                  />
+                }
+              />
+
+              <div className="mt-1 text-right">
+                <Link
+                  href={`/${locale}/forgot-password`}
+                  className="text-[13px] text-[#64748b] underline underline-offset-1 hover:text-[#0c7c88]"
+                >
+                  Mot de passe oublié?
+                </Link>
+              </div>
+            </div>
+
+            <CustomCheckbox
+              checked={formData.remember}
+              onChange={(event) => updateField("remember", event.target.checked)}
+              label={<>Gardez ma session ouverte</>}
+              containerClassName="text-[14px]"
             />
 
             <CustomButton
@@ -133,7 +170,7 @@ export function LoginForm() {
               isLoading={isPending}
               className="rounded-[5px]"
             >
-              {isPending ? "Chargement..." : "Continuer par E-mail"}
+              {isPending ? "Connexion..." : "Connexion"}
             </CustomButton>
           </form>
 

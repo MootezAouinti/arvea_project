@@ -1,17 +1,33 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  Check,
   ChevronDown,
   Globe,
   Search,
   ShoppingCart,
-  UserCircle2,
 } from "lucide-react";
 import Link from "next/link";
+import { useParams, usePathname } from "next/navigation";
+import { HeaderDropdown } from "@/components/shared/header-dropdown";
+import { useCurrentUser } from "@/features/auth/hooks/use-current-user";
+import { getUserInitial } from "@/utils/user";
 
-const countries = [
+
+type Country = {
+  code: string;
+  name: string;
+  flag: string;
+};
+
+type Language = {
+  code: string;
+  label: string;
+  shortLabel: string;
+  flag: string;
+};
+
+const countries: Country[] = [
   { code: "DZ", name: "Algérie", flag: "dz" },
   { code: "TN", name: "Tunisie", flag: "tn" },
   { code: "CI", name: "Côte d'Ivoire", flag: "ci" },
@@ -24,27 +40,65 @@ const countries = [
   { code: "EG", name: "Égypte", flag: "eg" },
 ];
 
+const languages: Language[] = [
+  { code: "fr", label: "Français", shortLabel: "Fr", flag: "fr" },
+  { code: "en", label: "English", shortLabel: "En", flag: "gb" },
+  { code: "ar", label: "العربية", shortLabel: "Ar", flag: "sa" },
+];
+
 export default function Header() {
-  const [selectedCountry, setSelectedCountry] = useState(countries[0]);
-  const [isCountryOpen, setIsCountryOpen] = useState(false);
+  const params = useParams();
+  const pathname = usePathname();
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const currentLocale =
+    typeof params?.locale === "string" ? params.locale : "fr";
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsCountryOpen(false);
-      }
+  const [selectedCountry, setSelectedCountry] = useState<Country>(countries[1]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  const { user, isLoading } = useCurrentUser();
+
+  const cartCount = 0;
+
+  const selectedLanguage = useMemo(() => {
+    return (
+      languages.find((language) => language.code === currentLocale) ??
+      languages[0]
+    );
+  }, [currentLocale]);
+
+  function buildLocalePath(locale: string) {
+    if (!pathname) return `/${locale}`;
+
+    const segments = pathname.split("/").filter(Boolean);
+
+    if (segments.length === 0) {
+      return `/${locale}`;
     }
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+    if (languages.some((language) => language.code === segments[0])) {
+      segments[0] = locale;
+      return `/${segments.join("/")}`;
+    }
+
+    return `/${locale}/${segments.join("/")}`;
+  }
+
+  const languageItems = languages.map((language) => ({
+    key: language.code,
+    label: language.label,
+    imageSrc: `https://flagcdn.com/w20/${language.flag}.png`,
+    imageAlt: language.label,
+    href: buildLocalePath(language.code),
+  }));
+
+  const countryItems = countries.map((country) => ({
+    key: country.code,
+    label: country.name,
+    imageSrc: `https://flagcdn.com/w20/${country.flag}.png`,
+    imageAlt: `${country.name} flag`,
+    onClick: () => setSelectedCountry(country),
+  }));
 
   return (
     <header className="w-full border-b border-gray-200 bg-white">
@@ -64,7 +118,10 @@ export default function Header() {
               placeholder="Recherche des produits ici ..."
               className="w-full border-none bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
             />
-            <button className="ml-3 text-gray-700 transition hover:text-black">
+            <button
+              type="button"
+              className="ml-3 text-gray-700 transition hover:text-black"
+            >
               <Search size={18} />
             </button>
           </div>
@@ -72,80 +129,98 @@ export default function Header() {
 
         {/* Right - Actions */}
         <div className="flex min-w-[240px] items-center justify-end gap-4 text-sm text-gray-800">
-          <button className="flex items-center gap-1 hover:text-black">
-            <Globe size={16} />
-            <span>Fr</span>
-          </button>
+          {/* Language Dropdown */}
+          <HeaderDropdown
+            trigger={
+              <button
+                type="button"
+                className="flex items-center gap-1 hover:text-black"
+              >
+                <Globe size={16} />
+                <span>{selectedLanguage.shortLabel}</span>
+              </button>
+            }
+            items={languageItems}
+            selectedKey={selectedLanguage.code}
+            widthClassName="w-[170px]"
+          />
 
           {/* Country Dropdown */}
-          <div className="relative" ref={dropdownRef}>
-            <button
-              type="button"
-              onClick={() => setIsCountryOpen((prev) => !prev)}
-              className="flex items-center gap-2 hover:text-black"
-            >
-              <img
-                src={`https://flagcdn.com/w20/${selectedCountry.flag}.png`}
-                alt={`${selectedCountry.code} flag`}
-                className="h-3 w-5 object-cover"
-              />
-              <span>{selectedCountry.code}</span>
-              <ChevronDown
-                size={14}
-                className={`transition-transform duration-200 ${
-                  isCountryOpen ? "rotate-180" : ""
-                }`}
-              />
+          <HeaderDropdown
+            trigger={
+              <button
+                type="button"
+                className="flex items-center gap-2 hover:text-black"
+              >
+                <img
+                  src={`https://flagcdn.com/w20/${selectedCountry.flag}.png`}
+                  alt={`${selectedCountry.code} flag`}
+                  className="h-3 w-5 object-cover"
+                />
+                <span>{selectedCountry.code}</span>
+                <ChevronDown size={14} className="transition-transform duration-200" />
+              </button>
+            }
+            items={countryItems}
+            selectedKey={selectedCountry.code}
+            widthClassName="w-[240px]"
+          />
+
+          {/* Cart */}
+          <div
+            className="relative"
+            onMouseEnter={() => setIsCartOpen(true)}
+            onMouseLeave={() => setIsCartOpen(false)}
+          >
+            <button type="button" className="relative hover:text-black">
+              <ShoppingCart size={20} />
+              <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+                {cartCount}
+              </span>
             </button>
 
-            {isCountryOpen && (
-              <div className="absolute right-0 top-full z-50 mt-3 w-[240px] overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
-                {countries.map((country) => {
-                  const isSelected = selectedCountry.code === country.code;
+            {cartCount === 0 && (
+              <div
+                className={`absolute right-0 top-full z-50 mt-3 w-[270px] rounded-[4px] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] transition-all duration-200 ${
+                  isCartOpen
+                    ? "visible translate-y-0 opacity-100"
+                    : "invisible -translate-y-2 opacity-0"
+                }`}
+              >
+                <div className="px-5 pb-5 pt-4">
+                  <p className="text-center text-[14px] font-medium uppercase leading-[1.45] text-[#1f2937]">
+                    VOTRE PANIER EST VIDE POUR L&apos;INSTANT.
+                  </p>
 
-                  return (
-                    <button
-                      key={country.code}
-                      type="button"
-                      onClick={() => {
-                        setSelectedCountry(country);
-                        setIsCountryOpen(false);
-                      }}
-                      className="flex w-full items-center justify-between border-b border-gray-200 px-3 py-3 text-left text-sm hover:bg-gray-50 last:border-b-0"
-                    >
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={`https://flagcdn.com/w20/${country.flag}.png`}
-                          alt={`${country.name} flag`}
-                          className="h-3 w-5 object-cover"
-                        />
-                        <span>{country.name}</span>
-                      </div>
+                  <div className="mt-8 flex items-center justify-between text-[16px] font-semibold text-[#1f2937]">
+                    <span>TOTAL:</span>
+                    <span>0 TND</span>
+                  </div>
 
-                      {isSelected && (
-                        <Check size={16} className="text-gray-500" />
-                      )}
-                    </button>
-                  );
-                })}
+                  <button
+                    type="button"
+                    className="mt-3 h-[40px] w-full rounded-[4px] bg-[#5dd3db] text-[13px] font-semibold text-white transition hover:opacity-95"
+                  >
+                    Passer La Commande
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
-          <button className="relative hover:text-black">
-            <ShoppingCart size={20} />
-            <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
-              0
-            </span>
-          </button>
-
+          {/* User Account */}
           <Link
-              href="/fr/account"
-              className="flex items-center gap-2 hover:text-black"
-            >
-              <span className="font-medium">Mootez</span>
-              <UserCircle2 size={24} className="text-gray-500" />
-            </Link>
+            href={`/${currentLocale}/account`}
+            className="group flex items-center gap-2 text-[#111827] transition-colors duration-200 hover:text-[#0c7c88]"
+          >
+            <span className="font-medium">
+              {isLoading ? "..." : user?.first_name ?? "Compte"}
+            </span>
+
+            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#4b6687] text-sm font-semibold text-[#1f2937] transition-colors duration-200 group-hover:border-[#0c7c88] group-hover:text-[#0c7c88]">
+              {getUserInitial(user?.first_name)}
+            </span>
+          </Link>
         </div>
       </div>
     </header>

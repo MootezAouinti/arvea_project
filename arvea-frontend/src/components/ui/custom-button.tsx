@@ -17,16 +17,16 @@ export function CustomButton({
 }: CustomButtonProps) {
   return (
     <button
+      disabled={disabled || isLoading}
       className={clsx(
-        "w-full rounded-xl px-4 py-3 text-sm font-medium text-white transition",
-        "bg-neutral-900 hover:opacity-90",
+        "h-[50px] w-full rounded-[8px] text-[16px] font-semibold text-white transition",
+        "bg-[#0c7f8c] hover:opacity-95",
         "disabled:cursor-not-allowed disabled:opacity-60",
         className
       )}
-      disabled={disabled || isLoading}
       {...props}
     >
-      {isLoading ? "Loading..." : children}
+      {isLoading ? "Création..." : children}
     </button>
   );
 }

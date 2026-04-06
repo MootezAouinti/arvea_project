@@ -11,14 +11,21 @@ use App\Http\Controllers\Api\AuthController;
 |--------------------------------------------------------------------------
 */
 Route::prefix('auth')->group(function () {
+    Route::post('/check-email', [AuthController::class, 'checkEmail']);
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
+    
+    
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/logout-all', [AuthController::class, 'logoutAll']);
-    });
+        Route::put('/update-profile', [AuthController::class, 'updateProfile']);
+        Route::put('/update-email', [AuthController::class, 'updateEmail']);
+        Route::put('/update-phone', [AuthController::class, 'updatePhone']);
+        Route::put('/update-password', [AuthController::class, 'updatePassword']);
+        });
 });
 
 /*

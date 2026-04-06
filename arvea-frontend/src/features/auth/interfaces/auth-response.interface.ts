@@ -14,18 +14,33 @@ export interface Country {
   updated_at: string;
 }
 
-export interface AuthUser {
+export interface Role {
   id: number;
-  name: string;
-  email: string;
-  email_verified_at: string | null;
-  admin: boolean;
-  user_default_language_id: number | null;
+  name: UserRole;
+  description: string | null;
   created_at: string;
   updated_at: string;
-  country_id: number;
+}
+
+export interface AuthUser {
+  id: number;
+  first_name: string;
+  last_name: string;
+  name: string;
+  email: string;
+  email_verified_at?: string | null;
+  phone: string | null;
+  admin?: boolean;
+  user_default_language_id?: number | null;
+  created_at: string;
+  updated_at: string;
+  country_id: number | null;
   role_id: number | null;
+  newsletter_subscribed: boolean;
+  privacy_policy_accepted_at: string | null;
   country: Country | null;
+  role: Role | null;
+  cashback: number | null;
 }
 
 export interface MeResponse {
@@ -36,7 +51,6 @@ export interface MeResponse {
 
 export interface LoginResponse {
   success: boolean;
-  type: string;
   message: string;
   data: {
     user: AuthUser;
