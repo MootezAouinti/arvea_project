@@ -19,7 +19,11 @@ export function useLogout(options?: UseLogoutOptions) {
     onSuccess: async (data) => {
       queryClient.setQueryData(authQueryKeys.me(), null);
 
-      await queryClient.invalidateQueries({
+      await queryClient.cancelQueries({
+        queryKey: authQueryKeys.me(),
+      });
+
+      queryClient.removeQueries({
         queryKey: authQueryKeys.me(),
       });
 

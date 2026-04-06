@@ -10,8 +10,9 @@ import {
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { HeaderDropdown } from "@/components/shared/header-dropdown";
-import { useCurrentUser } from "@/features/auth/hooks/use-current-user";
 import { getUserInitial } from "@/utils/user";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import { UserCircle2 } from "lucide-react";
 
 
 type Country = {
@@ -56,7 +57,7 @@ export default function Header() {
   const [selectedCountry, setSelectedCountry] = useState<Country>(countries[1]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const { user, isLoading } = useCurrentUser();
+  const { user, isLoading } = useAuth();
 
   const cartCount = 0;
 
@@ -181,11 +182,10 @@ export default function Header() {
 
             {cartCount === 0 && (
               <div
-                className={`absolute right-0 top-full z-50 mt-3 w-[270px] rounded-[4px] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] transition-all duration-200 ${
-                  isCartOpen
-                    ? "visible translate-y-0 opacity-100"
-                    : "invisible -translate-y-2 opacity-0"
-                }`}
+                className={`absolute right-0 top-full z-50 mt-3 w-[270px] rounded-[4px] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] transition-all duration-200 ${isCartOpen
+                  ? "visible translate-y-0 opacity-100"
+                  : "invisible -translate-y-2 opacity-0"
+                  }`}
               >
                 <div className="px-5 pb-5 pt-4">
                   <p className="text-center text-[14px] font-medium uppercase leading-[1.45] text-[#1f2937]">
@@ -210,16 +210,22 @@ export default function Header() {
 
           {/* User Account */}
           <Link
-            href={`/${currentLocale}/account`}
+            href={user ? `/${currentLocale}/account` : `/${currentLocale}/login`}
             className="group flex items-center gap-2 text-[#111827] transition-colors duration-200 hover:text-[#0c7c88]"
           >
-            <span className="font-medium">
-              {isLoading ? "..." : user?.first_name ?? "Compte"}
-            </span>
+            {user && !isLoading && (
+              <span className="font-medium">{user.first_name}</span>
+            )}
 
-            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#4b6687] text-sm font-semibold text-[#1f2937] transition-colors duration-200 group-hover:border-[#0c7c88] group-hover:text-[#0c7c88]">
-              {getUserInitial(user?.first_name)}
-            </span>
+            {user ? (
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#4b6687] text-sm font-semibold text-[#1f2937] transition-colors duration-200 group-hover:border-[#0c7c88] group-hover:text-[#0c7c88]">
+                {getUserInitial(user.first_name)}
+              </span>
+            ) : (
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#4b6687] text-[#1f2937] transition-colors duration-200 group-hover:border-[#0c7c88] group-hover:text-[#0c7c88]">
+                <UserCircle2 size={18} />
+              </span>
+            )}
           </Link>
         </div>
       </div>
