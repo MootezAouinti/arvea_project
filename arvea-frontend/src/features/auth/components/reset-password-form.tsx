@@ -68,9 +68,9 @@ export function ResetPasswordForm() {
     <main className="relative min-h-screen bg-[#efefef]">
       <div className="flex min-h-screen flex-col items-center justify-center px-4">
         <div className="w-full max-w-[420px] rounded-xl bg-white px-8 py-10 text-center shadow-sm">
-          <h1 className="text-2xl font-bold tracking-widest">ARVEA</h1>
+          <h1 className="text-2xl font-bold tracking-widest text-[#111827] ">ARVEA</h1>
 
-          <h2 className="mt-4 text-[18px] font-semibold">
+          <h2 className="mt-4 text-[20px] font-semibold text-[#111827]">
             Créer un nouveau mot de passe
           </h2>
 
@@ -105,7 +105,7 @@ export function ResetPasswordForm() {
 
           <Link
             href={`/${locale}/login`}
-            className="mt-4 block underline"
+            className="mt-4 block underline text-[#111827] "
           >
             Annuler
           </Link>
