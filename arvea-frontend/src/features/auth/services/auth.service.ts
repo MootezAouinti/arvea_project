@@ -22,6 +22,9 @@ export const apiUrl = {
   update_email: `${AUTH_PREFIX}/update-email`,
   update_phone: `${AUTH_PREFIX}/update-phone`,
   update_psw: `${AUTH_PREFIX}/update-password`,
+  forgot_password: `${AUTH_PREFIX}/forgot-password`,
+  verify_reset_code: `${AUTH_PREFIX}/verify-reset-code`,
+  reset_password: `${AUTH_PREFIX}/reset-password`,
 };
 
 class AuthService {
@@ -92,12 +95,39 @@ class AuthService {
   }
 
   async updatePassword(data: {
-  old_password: string;
-  password: string;
-  password_confirmation: string;
+    old_password: string;
+    password: string;
+    password_confirmation: string;
   }) {
     return apiClient.put<{ message: string }>(apiUrl.update_psw, data);
-}
+  }
+
+  async forgotPassword(data: { email: string }) {
+    return apiClient.post<{
+      success: boolean;
+      message: string;
+      data?: { email: string; code?: string };
+    }>(apiUrl.forgot_password, data);
+  }
+
+  async verifyResetCode(data: { email: string; code: string }) {
+    return apiClient.post<{
+      success: boolean;
+      message: string;
+      data?: { email: string };
+    }>(apiUrl.verify_reset_code, data);
+  }
+
+  async resetForgottenPassword(data: {
+    email: string;
+    password: string;
+    password_confirmation: string;
+  }) {
+    return apiClient.post<{
+      success: boolean;
+      message: string;
+    }>(apiUrl.reset_password, data);
+  }
 }
 
 

@@ -7,10 +7,15 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\PasswordResetCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use App\Mail\PasswordResetCodeMail;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -129,75 +134,212 @@ class AuthController extends Controller
         }
 
         // Modifier prénom / nom
-public function updateProfile(Request $request)
-{
-    $request->validate([
-        'first_name' => 'required|string|max:255',
-        'last_name'  => 'required|string|max:255',
-    ]);
+    public function updateProfile(Request $request)
+        {
+            $request->validate([
+                'first_name' => 'required|string|max:255',
+                'last_name'  => 'required|string|max:255',
+            ]);
 
-    $user = $request->user();
-    $user->update([
-        'first_name' => $request->first_name,
-        'last_name'  => $request->last_name,
-    ]);
+            $user = $request->user();
+            $user->update([
+                'first_name' => $request->first_name,
+                'last_name'  => $request->last_name,
+            ]);
 
-    return response()->json(['user' => $user]);
-}
+            return response()->json(['user' => $user]);
+        }
 
-// Modifier email
-public function updateEmail(Request $request)
-{
-    $request->validate([
-        'email'    => 'required|email|unique:users,email',
-        'password' => 'required',
-    ]);
+    // Modifier email
+    public function updateEmail(Request $request)
+        {
+            $request->validate([
+                'email'    => 'required|email|unique:users,email',
+                'password' => 'required',
+            ]);
 
-    $user = $request->user();
+            $user = $request->user();
 
-    if (!Hash::check($request->password, $user->password)) {
-        throw ValidationException::withMessages([
-            'password' => ['Mot de passe incorrect.'],
-        ]);
-    }
+            if (!Hash::check($request->password, $user->password)) {
+                throw ValidationException::withMessages([
+                    'password' => ['Mot de passe incorrect.'],
+                ]);
+            }
 
-    $user->update(['email' => $request->email]);
+            $user->update(['email' => $request->email]);
 
-    return response()->json(['user' => $user]);
-}
+            return response()->json(['user' => $user]);
+        }
 
-// Modifier téléphone
-public function updatePhone(Request $request)
-{
-    $request->validate([
-        'phone' => 'required|string|max:20',
-    ]);
+    // Modifier téléphone
+    public function updatePhone(Request $request)
+        {
+            $request->validate([
+                'phone' => 'required|string|max:20',
+            ]);
 
-    $user = $request->user();
-    $user->update(['phone' => $request->phone]);
+            $user = $request->user();
+            $user->update(['phone' => $request->phone]);
 
-    return response()->json(['user' => $user]);
-}
+            return response()->json(['user' => $user]);
+        }
 
-// Modifier mot de passe
-public function updatePassword(Request $request)
-{
-    $request->validate([
-        'old_password'          => 'required',
-        'password'              => 'required|min:8|confirmed', // confirmed = password_confirmation field
-        'password_confirmation' => 'required',
-    ]);
+    // Modifier mot de passe
+    public function updatePassword(Request $request)
+        {
+            $request->validate([
+                'old_password'          => 'required',
+                'password'              => 'required|min:8|confirmed', // confirmed = password_confirmation field
+                'password_confirmation' => 'required',
+            ]);
 
-    $user = $request->user();
+            $user = $request->user();
 
-    if (!Hash::check($request->old_password, $user->password)) {
-        throw ValidationException::withMessages([
-            'old_password' => ['Ancien mot de passe incorrect.'],
-        ]);
-    }
+            if (!Hash::check($request->old_password, $user->password)) {
+                throw ValidationException::withMessages([
+                    'old_password' => ['Ancien mot de passe incorrect.'],
+                ]);
+            }
 
-    $user->update(['password' => Hash::make($request->password)]);
+            $user->update(['password' => Hash::make($request->password)]);
 
-    return response()->json(['message' => 'Mot de passe mis à jour.']);
-}
+            return response()->json(['message' => 'Mot de passe mis à jour.']);
+        }
+
+    public function forgotPassword(Request $request)
+        {
+            $request->validate([
+                'email' => ['required', 'email'],
+            ]);
+
+            $user = User::where('email', $request->email)->first();
+
+            if (! $user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucun utilisateur trouvé avec cette adresse e-mail.',
+                ], 404);
+            }
+
+            PasswordResetCode::where('email', $request->email)
+                ->where('used', false)
+                ->delete();
+
+            $code = (string) random_int(100000, 999999);
+
+            PasswordResetCode::create([
+                'email' => $request->email,
+                'code' => $code,
+                'expires_at' => now()->addMinutes(10),
+            ]);
+
+            Mail::to($request->email)->send(new PasswordResetCodeMail($code));
+
+            // Temporary: return code in response during dev
+            // Remove this in production and send via email instead
+            return response()->json([
+                'success' => true,
+                'message' => 'Code de réinitialisation envoyé.',
+                'data' => [
+                    'email' => $request->email,
+                    'code' => $code,
+                ],
+            ]);
+        }
+
+    public function verifyResetCode(Request $request)
+        {
+            $request->validate([
+                'email' => ['required', 'email'],
+                'code' => ['required', 'digits:6'],
+            ]);
+
+            $reset = PasswordResetCode::where('email', $request->email)
+                ->where('code', $request->code)
+                ->where('used', false)
+                ->latest()
+                ->first();
+
+            if (! $reset) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Code invalide.',
+                ], 422);
+            }
+
+            if ($reset->expires_at->isPast()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Le code a expiré.',
+                ], 422);
+            }
+
+            $reset->update([
+                'verified_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Code vérifié avec succès.',
+                'data' => [
+                    'email' => $request->email,
+                ],
+            ]);
+        }
+
+    public function resetPassword(Request $request)
+        {
+            $request->validate([
+                'email' => ['required', 'email'],
+                'password' => ['required', 'string', 'min:8', 'confirmed'],
+            ]);
+
+            $reset = PasswordResetCode::where('email', $request->email)
+                ->where('used', false)
+                ->latest()
+                ->first();
+
+            if (! $reset) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucune demande de réinitialisation trouvée.',
+                ], 422);
+            }
+
+            if (! $reset->verified_at) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Veuillez vérifier le code avant de réinitialiser le mot de passe.',
+                ], 422);
+            }
+
+            if ($reset->expires_at->isPast()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Le code a expiré.',
+                ], 422);
+            }
+
+            $user = User::where('email', $request->email)->first();
+
+            if (! $user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Utilisateur introuvable.',
+                ], 404);
+            }
+
+            $user->update([
+                'password' => Hash::make($request->password),
+            ]);
+
+            $reset->update([
+                'used' => true,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Mot de passe réinitialisé avec succès.',
+            ]);
+        }
 }
