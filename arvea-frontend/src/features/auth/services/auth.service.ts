@@ -11,6 +11,7 @@ import type {
   MeResponse,
   RegisterResponse,
 } from "../interfaces/auth-response.interface";
+
 const AUTH_PREFIX = "/auth";
 
 export const apiUrl = {
@@ -25,6 +26,10 @@ export const apiUrl = {
   forgot_password: `${AUTH_PREFIX}/forgot-password`,
   verify_reset_code: `${AUTH_PREFIX}/verify-reset-code`,
   reset_password: `${AUTH_PREFIX}/reset-password`,
+  send_email_verification_code: `${AUTH_PREFIX}/send-email-verification-code`,
+  verify_email_code: `${AUTH_PREFIX}/verify-email-code`,
+  send_phone_verification_code: `${AUTH_PREFIX}/send-phone-verification-code`,
+  verify_phone_code: `${AUTH_PREFIX}/verify-phone-code`,
 };
 
 class AuthService {
@@ -49,7 +54,6 @@ class AuthService {
     await this.csrf();
 
     const response = await apiClient.post<LoginResponse>(apiUrl.login, payload);
-
     authStorage.setToken(response.data.token);
 
     return response;
@@ -59,7 +63,6 @@ class AuthService {
     await this.csrf();
 
     const response = await apiClient.post<RegisterResponse>(apiUrl.register, payload);
-
     authStorage.setToken(response.data.token);
 
     return response;
@@ -78,7 +81,6 @@ class AuthService {
 
   async checkEmail(email: string): Promise<{ success: boolean; message: string; data: { exists: boolean } }> {
     await this.csrf();
-
     return apiClient.post("/auth/check-email", { email });
   }
 
@@ -128,8 +130,37 @@ class AuthService {
       message: string;
     }>(apiUrl.reset_password, data);
   }
+
+  async sendEmailVerificationCode() {
+    return apiClient.post<{
+      success: boolean;
+      message: string;
+    }>(apiUrl.send_email_verification_code);
+  }
+
+  async verifyEmailCode(data: { code: string }) {
+    return apiClient.post<{
+      success: boolean;
+      message: string;
+    }>(apiUrl.verify_email_code, data);
+  }
+
+  async sendPhoneVerificationCode() {
+    return apiClient.post<{
+      success: boolean;
+      message: string;
+    }>(apiUrl.send_phone_verification_code);
+}
+
+  async verifyPhoneCode(data: { code: string }) {
+    return apiClient.post<{
+      success: boolean;
+      message: string;
+      data?: { user: AuthUser };
+    }>(apiUrl.verify_phone_code, data);
 }
 
 
+}
 
 export const authService = new AuthService();

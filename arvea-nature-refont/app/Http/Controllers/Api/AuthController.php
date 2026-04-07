@@ -14,107 +14,110 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use App\Mail\PasswordResetCodeMail;
+use App\Mail\PhoneVerificationCodeMail;
+use App\Mail\EmailVerificationCodeMail;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
     public function register(RegisterRequest $request): JsonResponse
-    {
-        $validated = $request->validated();
+        {
+            $validated = $request->validated();
 
-        $clientRole = Role::where('name', 'client')->first();
+            $clientRole = Role::where('name', 'client')->first();
 
-        if (! $clientRole) {
+            if (! $clientRole) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Default client role not found.',
+                ], 500);
+            }
+
+            $fullName = trim($validated['first_name'] . ' ' . $validated['last_name']);
+
+            $user = User::create([
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
+                'name' => $fullName,
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'password' => $validated['password'],
+                'country_id' => $validated['country_id'] ?? null,
+                'role_id' => $clientRole->id,
+                'newsletter_subscribed' => $validated['newsletter'] ?? false,
+                'privacy_policy_accepted_at' => now(),
+            ]);
+
+            $token = $user->createToken('auth_token')->plainTextToken;
+
             return response()->json([
-                'success' => false,
-                'message' => 'Default client role not found.',
-            ], 500);
+                'success' => true,
+                'message' => 'User registered successfully.',
+                'data' => [
+                    'user' => $user->load('country', 'role'),
+                    'token' => $token,
+                    'token_type' => 'Bearer',
+                ],
+            ], 201);
         }
 
-        $fullName = trim($validated['first_name'] . ' ' . $validated['last_name']);
-
-        $user = User::create([
-            'first_name' => $validated['first_name'],
-            'last_name' => $validated['last_name'],
-            'name' => $fullName,
-            'email' => $validated['email'],
-            'phone' => $validated['phone'] ?? null,
-            'password' => $validated['password'],
-            'country_id' => $validated['country_id'] ?? null,
-            'role_id' => $clientRole->id,
-            'newsletter_subscribed' => $validated['newsletter'] ?? false,
-            'privacy_policy_accepted_at' => now(),
-        ]);
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'success' => true,
-            'message' => 'User registered successfully.',
-            'data' => [
-                'user' => $user->load('country', 'role'),
-                'token' => $token,
-                'token_type' => 'Bearer',
-            ],
-        ], 201);
-    }
-
     public function login(LoginRequest $request): JsonResponse
-    {
-        $validated = $request->validated();
+        {
+            $validated = $request->validated();
 
-        $user = User::where('email', $validated['email'])
-            ->with(['country', 'role'])
-            ->first();
+            $user = User::where('email', $validated['email'])
+                ->with(['country', 'role'])
+                ->first();
 
-        if (! $user || ! Hash::check($validated['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials are incorrect.'],
+            if (! $user || ! Hash::check($validated['password'], $user->password)) {
+                throw ValidationException::withMessages([
+                    'email' => ['The provided credentials are incorrect.'],
+                ]);
+            }
+
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Login successful.',
+                'data' => [
+                    'user' => $user,
+                    'token' => $token,
+                    'token_type' => 'Bearer',
+                ],
             ]);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Login successful.',
-            'data' => [
-                'user' => $user,
-                'token' => $token,
-                'token_type' => 'Bearer',
-            ],
-        ]);
-    }
-
     public function me(Request $request): JsonResponse
-    {
-        return response()->json([
-            'success' => true,
-            'message' => 'Authenticated user retrieved successfully.',
-            'data' => $request->user()->load('country', 'role'),
-        ]);
-    }
+        {
+            return response()->json([
+                'success' => true,
+                'message' => 'Authenticated user retrieved successfully.',
+                'data' => $request->user()->load('country', 'role'),
+            ]);
+        }
 
     public function logout(Request $request): JsonResponse
-    {
-        $request->user()->currentAccessToken()?->delete();
+        {
+            $request->user()->currentAccessToken()?->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Logged out successfully.',
-        ]);
-    }
+            return response()->json([
+                'success' => true,
+                'message' => 'Logged out successfully.',
+            ]);
+        }
 
     public function logoutAll(Request $request): JsonResponse
-    {
-        $request->user()->tokens()->delete();
+        {
+            $request->user()->tokens()->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Logged out from all devices successfully.',
-        ]);
-    }
+            return response()->json([
+                'success' => true,
+                'message' => 'Logged out from all devices successfully.',
+            ]);
+        }
 
     public function checkEmail(Request $request): JsonResponse
         {
@@ -154,8 +157,8 @@ class AuthController extends Controller
     public function updateEmail(Request $request)
         {
             $request->validate([
-                'email'    => 'required|email|unique:users,email',
-                'password' => 'required',
+                'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+                'password' => ['required', 'string'],
             ]);
 
             $user = $request->user();
@@ -166,22 +169,51 @@ class AuthController extends Controller
                 ]);
             }
 
-            $user->update(['email' => $request->email]);
+            $emailChanged = $user->email !== $request->email;
 
-            return response()->json(['user' => $user]);
+            $user->forceFill([
+                'email' => $request->email,
+                'email_verified_at' => $emailChanged ? null : $user->email_verified_at,
+            ])->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => $emailChanged
+                    ? 'Adresse email mise à jour avec succès. Veuillez vérifier votre nouvelle adresse email.'
+                    : 'Adresse email inchangée.',
+                'data' => [
+                    'user' => $user->fresh(),
+                    'email_verification_required' => $emailChanged,
+                ],
+            ]);
         }
 
     // Modifier téléphone
     public function updatePhone(Request $request)
         {
             $request->validate([
-                'phone' => 'required|string|max:20',
+                'phone' => ['required', 'string', 'max:20', 'unique:users,phone'],
             ]);
 
             $user = $request->user();
-            $user->update(['phone' => $request->phone]);
 
-            return response()->json(['user' => $user]);
+            $phoneChanged = $user->phone !== $request->phone;
+
+            $user->forceFill([
+                'phone' => $request->phone,
+                'phone_verified_at' => $phoneChanged ? null : $user->phone_verified_at,
+            ])->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => $phoneChanged
+                    ? 'Numéro de téléphone mis à jour avec succès. Veuillez vérifier votre nouveau numéro.'
+                    : 'Numéro de téléphone inchangé.',
+                'data' => [
+                    'user' => $user->fresh(),
+                    'phone_verification_required' => $phoneChanged,
+                ],
+            ]);
         }
 
     // Modifier mot de passe
@@ -340,6 +372,165 @@ class AuthController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Mot de passe réinitialisé avec succès.',
+            ]);
+        }
+
+    public function sendEmailVerificationCode(Request $request)
+        {
+            $user = $request->user();
+
+            if (!$user->email) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucune adresse email trouvée pour cet utilisateur.',
+                ], 422);
+            }
+
+            if ($user->email_verified_at) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Votre adresse email est déjà vérifiée.',
+                ]);
+            }
+
+            $code = (string) random_int(100000, 999999);
+
+            Cache::put(
+                'email_verification_code_user_' . $user->id,
+                $code,
+                now()->addMinutes(10)
+            );
+
+            Mail::to($user->email)->send(new EmailVerificationCodeMail($code));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Le code de vérification a été envoyé avec succès.',
+            ]);
+        }
+
+    public function verifyEmailCode(Request $request)
+        {
+            $request->validate([
+                'code' => ['required', 'digits:6'],
+            ]);
+
+            $user = $request->user();
+
+            $cacheKey = 'email_verification_code_user_' . $user->id;
+            $cachedCode = Cache::get($cacheKey);
+
+            if (!$cachedCode) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Le code a expiré ou est introuvable.',
+                ], 422);
+            }
+
+            if ($request->code !== $cachedCode) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Le code saisi est incorrect.',
+                ], 422);
+            }
+
+            $user->forceFill([
+                'email_verified_at' => now(),
+            ])->save();
+
+            Cache::forget($cacheKey);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Votre adresse mail a été vérifiée avec succès.',
+                'data' => [
+                    'user' => $user->fresh(),
+                ],
+            ]);
+        }
+
+    public function sendPhoneVerificationCode(Request $request)
+        {
+            $user = $request->user();
+
+            if (!$user->phone) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Aucun numéro trouvé.',
+                ], 422);
+            }
+
+            if ($user->phone_verified_at) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Numéro déjà vérifié.',
+                ]);
+            }
+
+            $cooldownKey = 'phone_verification_cooldown_user_' . $user->id;
+
+            if (Cache::has($cooldownKey)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Veuillez patienter quelques secondes avant de demander un nouveau code.',
+                ], 429);
+            }
+
+            $code = (string) random_int(100000, 999999);
+
+            Cache::put(
+                'phone_verification_code_user_' . $user->id,
+                $code,
+                now()->addMinutes(10)
+            );
+
+            Cache::put($cooldownKey, true, now()->addSeconds(30));
+
+            Mail::to($user->email)->send(new PhoneVerificationCodeMail($code));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Le code de vérification a été envoyé avec succès.',
+            ]);
+        }
+
+    public function verifyPhoneCode(Request $request)
+        {
+            $request->validate([
+                'code' => ['required', 'digits:6'],
+            ]);
+
+            $user = $request->user();
+
+            $cacheKey = 'phone_verification_code_user_' . $user->id;
+            $cachedCode = Cache::get($cacheKey);
+
+            if (!$cachedCode) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Le code a expiré ou est introuvable.',
+                ], 422);
+            }
+
+            if ($request->code !== $cachedCode) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Le code est incorrect.',
+                ], 422);
+            }
+
+            $user->forceFill([
+                'phone_verified_at' => now(),
+            ])->save();
+
+            Cache::forget($cacheKey);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Votre numéro de téléphone a été vérifié avec succès.',
+                'data' => [
+                    'user' => $user->fresh(),
+                ],
             ]);
         }
 }

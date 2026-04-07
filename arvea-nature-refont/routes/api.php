@@ -29,6 +29,10 @@ Route::prefix('auth')->group(function () {
         Route::put('/update-email', [AuthController::class, 'updateEmail']);
         Route::put('/update-phone', [AuthController::class, 'updatePhone']);
         Route::put('/update-password', [AuthController::class, 'updatePassword']);
+        Route::post('/send-email-verification-code', [AuthController::class, 'sendEmailVerificationCode']);
+        Route::post('/verify-email-code', [AuthController::class, 'verifyEmailCode']);
+        Route::post('/send-phone-verification-code', [AuthController::class, 'sendPhoneVerificationCode']);
+        Route::post('/verify-phone-code', [AuthController::class, 'verifyPhoneCode']);
         });
 });
 

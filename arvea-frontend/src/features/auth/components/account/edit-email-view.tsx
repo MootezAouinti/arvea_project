@@ -29,7 +29,7 @@ export function EditEmailView({
   return (
     <div className="max-w-[575px] rounded-[10px] border border-[#ececec] bg-white px-[32px] pb-[36px] pt-[28px] shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
       <h2 className="mb-7 text-[18px] font-semibold text-[#1f1f1f]">
-        Modifier l&apos;adresse Email
+        Modifier l'adresse Email
       </h2>
 
       <div className="mb-5 flex justify-center">
@@ -37,7 +37,7 @@ export function EditEmailView({
       </div>
 
       <p className="mb-5 text-center text-[15px] font-semibold text-[#1f1f1f]">
-        Mettre à jour l&apos;adresse email
+        Mettre à jour l'adresse email
       </p>
 
       <input
@@ -71,7 +71,7 @@ export function EditEmailView({
         disabled={isSaving}
         className="mb-4 w-full rounded-[6px] bg-[#0c7c88] py-[13px] text-[15px] font-semibold text-white transition-colors hover:bg-[#0a6b76] disabled:opacity-60"
       >
-        {isSaving ? "Enregistrement..." : "Modifier l&apos;adresse Email"}
+        {isSaving ? "Enregistrement..." : "Modifier l'adresse Email"}
       </button>
 
       <div className="text-center">

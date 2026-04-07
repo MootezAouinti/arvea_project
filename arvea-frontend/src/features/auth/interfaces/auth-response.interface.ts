@@ -30,6 +30,7 @@ export interface AuthUser {
   email: string;
   email_verified_at?: string | null;
   phone: string | null;
+  phone_verified_at?: null;
   admin?: boolean;
   user_default_language_id?: number | null;
   created_at: string;
@@ -41,6 +42,7 @@ export interface AuthUser {
   country: Country | null;
   role: Role | null;
   cashback: number | null;
+  
 }
 
 export interface MeResponse {
